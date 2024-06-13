@@ -10,31 +10,71 @@ services:
     env_file:
       - ./apps/orders/.env
     depends_on:
-      - mongodb-primary
-      - mongodb-secondary
-      - mongodb-arbiter
+      - mongosetup
+      - rabbitmq
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
     ports:
       - '3000:3000'
+    networks:
+      - mynetwork
+
+  billing:
+    build:
+      context: .
+      dockerfile: ./apps/billing/Dockerfile
+      target: development
+    command: npm run start:dev billing
+    env_file:
+      - ./apps/billing/.env
+    depends_on:
+      - mongodb-primary
+      - mongodb-secondary
+      - mongodb-arbiter
+      - rabbitmq
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - mynetwork
+
+  rabbitmq:
+    image: rabbitmq
+    ports:
+      - '5672:5672'
+    networks:
+      - mynetwork
 
   mongodb-primary:
+    hostname: mongodb-primary
+    container_name: mongodb-primary
     image: mongo:4.4.18
     platform: linux/amd64
+    restart: always
+    volumes:
+      - mongo1_data:/data/db
     environment:
       - MONGODB_ADVERTISED_HOSTNAME=mongodb-primary
       - MONGODB_REPLICA_SET_MODE=primary
       - MONGODB_ROOT_PASSWORD=password123
       - MONGODB_REPLICA_SET_KEY=replicasetkey123
-    volumes:
-      - 'mongodb_master_data:/mongo:4.4.18/mongodb'
     ports:
       - '27017:27017'
+    networks:
+      - mynetwork
+    entrypoint: ['/usr/bin/mongod', '--bind_ip_all', '--replSet', 'rs0']
 
   mongodb-secondary:
+    hostname: mongodb-secondary
+    container_name: mongodb-secondary
     image: mongo:4.4.18
     platform: linux/amd64
+    restart: always
+    volumes:
+      - mongo2_data:/data/db
+    networks:
+      - mynetwork
     depends_on:
       - mongodb-primary
     environment:
@@ -43,10 +83,18 @@ services:
       - MONGODB_INITIAL_PRIMARY_HOST=mongodb-primary
       - MONGODB_INITIAL_PRIMARY_ROOT_PASSWORD=password123
       - MONGODB_REPLICA_SET_KEY=replicasetkey123
+    entrypoint: ['/usr/bin/mongod', '--bind_ip_all', '--replSet', 'rs0']
 
   mongodb-arbiter:
+    hostname: mongodb-arbiter
+    container_name: mongodb-arbiter
     image: mongo:4.4.18
     platform: linux/amd64
+    restart: always
+    volumes:
+      - mongo3_data:/data/db
+    networks:
+      - mynetwork
     depends_on:
       - mongodb-primary
     environment:
@@ -55,7 +103,25 @@ services:
       - MONGODB_INITIAL_PRIMARY_HOST=mongodb-primary
       - MONGODB_INITIAL_PRIMARY_ROOT_PASSWORD=password123
       - MONGODB_REPLICA_SET_KEY=replicasetkey123
+    entrypoint: ['/usr/bin/mongod', '--bind_ip_all', '--replSet', 'rs0']
+
+  mongosetup:
+    image: mongo
+    depends_on:
+      - mongodb-primary
+      - mongodb-secondary
+      - mongodb-arbiter
+    volumes:
+      - .:/scripts
+    restart: 'no'
+    networks:
+      - mynetwork
+    entrypoint: ['bash', '/scripts/mongo_setup.sh']
 
 volumes:
-  mongodb_master_data:
-    driver: local
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
+
+networks:
+  mynetwork:
