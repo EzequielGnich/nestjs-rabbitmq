@@ -13,6 +13,8 @@ services:
     depends_on:
       - mongosetup
       - rabbitmq
+      - billing
+      - auth
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
@@ -33,13 +35,34 @@ services:
     env_file:
       - ./apps/billing/.env
     depends_on:
-      - mongodb-primary
-      - mongodb-secondary
-      - mongodb-arbiter
+      - mongosetup
+      - rabbitmq
+      - auth
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    # This is the general network to all services
+    networks:
+      - mynetwork
+
+  auth:
+    build:
+      context: .
+      # This Dockerfile is create inside orders aplication
+      dockerfile: ./apps/auth/Dockerfile
+      target: development
+    command: npm run start:dev auth
+    env_file:
+      - ./apps/auth/.env
+    depends_on:
+      - mongosetup
       - rabbitmq
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
+    # Map the port 3000 of the docker container to 3000 in the Machine
+    ports:
+      - '3001:3001'
     # This is the general network to all services
     networks:
       - mynetwork
