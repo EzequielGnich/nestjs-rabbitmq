@@ -4,6 +4,7 @@ services:
   orders:
     build:
       context: .
+      # This Dockerfile is create inside orders aplication
       dockerfile: ./apps/orders/Dockerfile
       target: development
     command: npm run start:dev orders
@@ -15,14 +16,17 @@ services:
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
+    # Map the port 3000 of the docker container to 3000 in the Machine
     ports:
       - '3000:3000'
+    # This is the general network to all services
     networks:
       - mynetwork
 
   billing:
     build:
       context: .
+      # This Dockerfile is create inside billing aplication
       dockerfile: ./apps/billing/Dockerfile
       target: development
     command: npm run start:dev billing
@@ -36,13 +40,16 @@ services:
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
+    # This is the general network to all services
     networks:
       - mynetwork
 
   rabbitmq:
     image: rabbitmq
     ports:
+      # Map the port 5672 of the docker container to 5672 in the Machine
       - '5672:5672'
+    # This is the general network to all services
     networks:
       - mynetwork
 
@@ -61,6 +68,7 @@ services:
       - MONGODB_REPLICA_SET_KEY=replicasetkey123
     ports:
       - '27017:27017'
+    # This is the general network to all services
     networks:
       - mynetwork
     entrypoint: ['/usr/bin/mongod', '--bind_ip_all', '--replSet', 'rs0']
@@ -73,6 +81,7 @@ services:
     restart: always
     volumes:
       - mongo2_data:/data/db
+    # This is the general network to all services
     networks:
       - mynetwork
     depends_on:
@@ -93,6 +102,7 @@ services:
     restart: always
     volumes:
       - mongo3_data:/data/db
+    # This is the general network to all services
     networks:
       - mynetwork
     depends_on:
@@ -114,6 +124,7 @@ services:
     volumes:
       - .:/scripts
     restart: 'no'
+    # This is the general network to all services
     networks:
       - mynetwork
     entrypoint: ['bash', '/scripts/mongo_setup.sh']
@@ -123,5 +134,6 @@ volumes:
   mongo2_data:
   mongo3_data:
 
+# This is set the network to all services
 networks:
   mynetwork:
